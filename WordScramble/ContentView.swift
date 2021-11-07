@@ -12,6 +12,10 @@ struct ContentView: View {
     @State private var rootWord = ""
     @State private var newWord = ""
     
+    @State private var errorTitle = ""
+    @State private var errorMessage = ""
+    @State private var showingError = false
+    
     var body: some View {
         NavigationView {
             List {
@@ -33,12 +37,21 @@ struct ContentView: View {
             .navigationTitle(rootWord)
             .onSubmit(addNewWord)
             .onAppear(perform: startGame)
+            .alert(errorTitle, isPresented: $showingError) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(errorMessage)
+            }
         }
     }
     
+    // Function gets triggered on onAppear
     func startGame() {
+        // If the url exists
         if let startWordsURL = Bundle.main.url(forResource: "start", withExtension: "txt") {
+            // if there are contents in the url that can be converted to a string
             if let startWords = try? String(contentsOf: startWordsURL) {
+                // combine the words into an array
                 let allWords = startWords.components(separatedBy: "\n")
                 // nil coelecing in case it doesnt return a word
                 rootWord = allWords.randomElement() ?? "silkworm"
@@ -48,17 +61,66 @@ struct ContentView: View {
         fatalError("Could not load start.txt from bundle")
     }
     
+    func isOriginal(word: String) -> Bool {
+        !usedWords.contains(word)
+    }
+    
+    func isPossible(word: String) -> Bool {
+        var tempWord = rootWord
+        
+        // for each letter in the given word passed in
+        for letter in word {
+            // find the index at which the letter appears in the given word
+            if let pos = tempWord.firstIndex(of: letter) {
+                // if it exists, remove it from the given word
+                tempWord.remove(at: pos)
+            } else {
+                return false
+            }
+        }
+        return true
+    }
+    
+    func isReal(word: String) -> Bool {
+        let checker = UITextChecker()
+        let range = NSRange(location: 0, length: word.utf16.count)
+        let misspelledRange = checker.rangeOfMisspelledWord(in: word, range: range, startingAt: 0, wrap: false, language: "en")
+        
+        return misspelledRange.location == NSNotFound
+    }
+    
     func addNewWord() {
         let answer = newWord.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         // make sure theres at least one character in here
+        // "guard" is saying:
+            // if this expression is valid and truthy, continue
         guard answer.count > 0 else { return }
         
-        // Extra validation...
+        guard isOriginal(word: answer) else {
+            wordError(title: "Word used already", message: "Be more original")
+            return
+        }
+        
+        guard isPossible(word: answer) else {
+            wordError(title: "Word not possible", message: "You can't spell that word from \(rootWord)")
+            return
+        }
+        guard isReal(word: answer) else {
+            wordError(title: "Word not recongized", message: "You can't just make them up")
+            return
+        }
+
         
         withAnimation {
             usedWords.insert(answer, at: 0)
         }
         newWord = ""
+    }
+    
+    func wordError(title: String, message: String) {
+        errorTitle = title
+        errorMessage = message
+        showingError = true
     }
     
     
