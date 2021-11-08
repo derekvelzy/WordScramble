@@ -35,6 +35,11 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(rootWord)
+            .toolbar {
+                Button("Restart game") {
+                    restart()
+                }
+            }
             .onSubmit(addNewWord)
             .onAppear(perform: startGame)
             .alert(errorTitle, isPresented: $showingError) {
@@ -42,6 +47,8 @@ struct ContentView: View {
             } message: {
                 Text(errorMessage)
             }
+            
+            // onAppear works kind of like useEffect
         }
     }
     
@@ -61,8 +68,17 @@ struct ContentView: View {
         fatalError("Could not load start.txt from bundle")
     }
     
+    func restart() {
+        startGame()
+        usedWords = []
+    }
+    
     func isOriginal(word: String) -> Bool {
         !usedWords.contains(word)
+    }
+    
+    func isLongEnough(word: String) -> Bool {
+        word.count > 3
     }
     
     func isPossible(word: String) -> Bool {
@@ -98,6 +114,11 @@ struct ContentView: View {
         
         guard isOriginal(word: answer) else {
             wordError(title: "Word used already", message: "Be more original")
+            return
+        }
+        
+        guard isLongEnough(word: answer) else {
+            wordError(title: "Word not long enough", message: "Word needs to be longer than 3 letters")
             return
         }
         
